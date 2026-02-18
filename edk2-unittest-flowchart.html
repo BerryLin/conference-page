@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDK2 UEFI Driver Unit Test — Enterprise Process Flow</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:        #F4F6F9;
+  --surface:   #FFFFFF;
+  --surface2:  #F0F2F5;
+  --border:    #D0D7E3;
+  --border2:   #E4E8EF;
+
+  --navy:      #0A1628;
+  --navy2:     #162240;
+  --slate:     #3A4A6B;
+  --slate2:    #5A6A8A;
+  --muted:     #8A96AA;
+
+  --blue:      #1155CC;
+  --blue-bg:   #EBF0FB;
+  --blue-bdr:  #A8BFEF;
+
+  --teal:      #0B6B5A;
+  --teal-bg:   #E8F5F2;
+  --teal-bdr:  #7DBFB3;
+
+  --amber:     #7A4A00;
+  --amber-bg:  #FFF7E6;
+  --amber-bdr: #F0C060;
+
+  --red:       #8B1A1A;
+  --red-bg:    #FFF0F0;
+  --red-bdr:   #EFAAAA;
+
+  --green:     #155A28;
+  --green-bg:  #EAF7EE;
+  --green-bdr: #7ECFA0;
+
+  --purple:    #4A1580;
+  --purple-bg: #F3ECFD;
+  --purple-bdr:#C09AE8;
+
+  --shadow-sm: 0 1px 3px rgba(10,22,40,0.08), 0 1px 2px rgba(10,22,40,0.05);
+  --shadow-md: 0 4px 12px rgba(10,22,40,0.10), 0 2px 4px rgba(10,22,40,0.06);
+  --shadow-lg: 0 8px 24px rgba(10,22,40,0.12), 0 4px 8px rgba(10,22,40,0.07);
+  --r: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: var(--navy);
+  min-height: 100vh;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 32px 72px;
+}
+
+/* ── DOCUMENT HEADER ── */
+.doc-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--blue);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+  padding: 28px 32px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.doc-header-left { flex: 1; }
+
+.doc-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.chip-blue   { background: var(--blue-bg);   color: var(--blue);   border: 1px solid var(--blue-bdr); }
+.chip-teal   { background: var(--teal-bg);   color: var(--teal);   border: 1px solid var(--teal-bdr); }
+.chip-amber  { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber-bdr); }
+.chip-purple { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-bdr); }
+.chip-green  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-bdr); }
+.chip-red    { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-bdr); }
+.chip-grey   { background: var(--surface2);  color: var(--slate);  border: 1px solid var(--border); }
+
+.doc-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.doc-subtitle {
+  font-size: 13px;
+  color: var(--slate2);
+}
+
+.doc-header-right { text-align: right; flex-shrink: 0; }
+
+.doc-info-table { border-collapse: collapse; }
+.doc-info-table td {
+  font-size: 11px;
+  padding: 2px 0 2px 20px;
+  color: var(--slate2);
+}
+.doc-info-table td:first-child {
+  font-weight: 600;
+  color: var(--slate);
+  text-align: right;
+  padding-left: 0;
+}
+
+/* ── LEGEND BAR ── */
+.legend-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 11px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.legend-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--slate);
+  font-weight: 500;
+}
+
+.legend-swatch {
+  width: 26px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-sep { width: 1px; height: 16px; background: var(--border); flex-shrink: 0; }
+
+/* ── SWIMLANE TABLE ── */
+.swimlane-table {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.swimlane-header {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 1fr;
+  border-bottom: 2px solid var(--border);
+}
+
+.swimlane-header-phase {
+  background: var(--navy);
+  color: #fff;
+  padding: 11px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.swimlane-header-lane {
+  padding: 11px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-left: 1px solid var(--border2);
+}
+
+.lane-icon {
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+
+.lh-wsl  { background: var(--purple-bg); color: var(--purple); border-bottom: 3px solid var(--purple); }
+.lh-edk2 { background: var(--blue-bg);   color: var(--blue);   border-bottom: 3px solid var(--blue); }
+.lh-ci   { background: var(--teal-bg);   color: var(--teal);   border-bottom: 3px solid var(--teal); }
+
+.swimlane-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr 1fr;
+  border-bottom: 1px solid var(--border2);
+  min-height: 120px;
+  animation: rowIn 0.3s ease both;
+}
+
+.swimlane-row:last-child { border-bottom: none; }
+.swimlane-row:nth-child(even) .swimlane-lane { background: #FAFBFD; }
+.swimlane-row:nth-child(1) { animation-delay: 0.05s; }
+.swimlane-row:nth-child(2) { animation-delay: 0.10s; }
+.swimlane-row:nth-child(3) { animation-delay: 0.15s; }
+.swimlane-row:nth-child(4) { animation-delay: 0.20s; }
+
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.phase-label {
+  background: var(--surface2);
+  border-right: 1px solid var(--border);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  text-align: center;
+}
+
+.phase-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.phase-name {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--slate2); line-height: 1.3;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.swimlane-lane {
+  padding: 14px 12px;
+  border-left: 1px solid var(--border2);
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+  position: relative;
+}
+
+/* ── PROCESS NODE ── */
+.pnode {
+  width: 100%;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 0.15s, transform 0.15s;
+  position: relative;
+}
+
+.pnode:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+.pnode-header {
+  padding: 7px 10px 6px;
+  display: flex; align-items: center; gap: 7px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.pnode-icon { font-size: 13px; flex-shrink: 0; line-height: 1; }
+
+.pnode-title {
+  font-size: 11px; font-weight: 600;
+  color: var(--navy); line-height: 1.25;
+  flex: 1;
+}
+
+.pnode-body { padding: 7px 10px 8px; }
+
+.pnode-desc {
+  font-size: 10px; color: var(--slate2);
+  line-height: 1.5; margin-bottom: 6px;
+}
+
+.pnode-code {
+  background: var(--navy);
+  color: #9DCEFF;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8.5px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  line-height: 1.75;
+}
+
+.c-green  { color: #7EC87E; }
+.c-yellow { color: #E8C56A; }
+.c-pink   { color: #F08080; }
+.c-white  { color: #DDEEFF; }
+
+.pnode.wsl    { border-left: 3px solid var(--purple); }
+.pnode.edk2   { border-left: 3px solid var(--blue); }
+.pnode.ci     { border-left: 3px solid var(--teal); }
+
+.start-badge {
+  position: absolute;
+  top: 7px; right: 8px;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 5px; border-radius: 2px;
+}
+
+/* ── FLOW ARROW ── */
+.flow-arrow {
+  display: flex; flex-direction: column;
+  align-items: center; flex-shrink: 0;
+}
+.flow-arrow-line { width: 1px; height: 12px; background: var(--border); }
+.flow-arrow-head {
+  width: 0; height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--border);
+}
+
+/* ── TOOLTIP ── */
+.tip { position: relative; }
+.tip-text {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--navy);
+  color: #dde;
+  font-size: 9.5px; padding: 5px 10px;
+  border-radius: 4px; white-space: nowrap;
+  z-index: 99; pointer-events: none;
+  box-shadow: var(--shadow-md);
+}
+.tip:hover .tip-text { display: block; }
+
+/* ── GATEWAY SECTION ── */
+.gateway-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+  animation: rowIn 0.3s 0.25s ease both;
+}
+
+.gateway-section-header {
+  background: var(--amber-bg);
+  border-bottom: 1px solid var(--amber-bdr);
+  padding: 10px 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.gateway-section-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--amber);
+}
+
+.gateway-body {
+  padding: 20px 24px;
+  display: flex; align-items: center; gap: 28px;
+}
+
+.diamond-shape {
+  width: 84px; height: 84px;
+  background: var(--surface);
+  border: 2px solid var(--amber-bdr);
+  border-radius: 4px;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.diamond-inner { transform: rotate(-45deg); text-align: center; }
+.diamond-inner .d-title { font-size: 10px; font-weight: 700; color: var(--amber); line-height: 1.3; }
+.diamond-inner .d-sub   { font-size: 8px; color: var(--muted); margin-top: 2px; }
+
+.gateway-paths {
+  flex: 1;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+
+.path-card { border-radius: 5px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-sm); }
+
+.path-card-header {
+  padding: 7px 12px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.path-success .path-card-header { background: var(--green-bg); color: var(--green); border-bottom: 1px solid var(--green-bdr); }
+.path-fail    .path-card-header { background: var(--red-bg);   color: var(--red);   border-bottom: 1px solid var(--red-bdr); }
+
+.path-card-body { padding: 10px 12px; background: var(--surface); }
+.path-card-body p { font-size: 10px; color: var(--slate2); line-height: 1.55; margin-bottom: 8px; }
+
+/* ── ENHANCEMENTS ── */
+.enhancements-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  margin-bottom: 20px;
+  animation: rowIn 0.3s 0.30s ease both;
+}
+
+.section-header {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.section-header-title {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--slate);
+}
+
+.section-line { flex: 1; height: 1px; background: var(--border); }
+
+.enhancements-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+}
+
+.enh-cell {
+  padding: 18px 20px;
+  border-right: 1px solid var(--border2);
+}
+.enh-cell:last-child { border-right: none; }
+
+.enh-title  { font-size: 12px; font-weight: 700; color: var(--navy); margin: 8px 0 5px; }
+.enh-desc   { font-size: 10px; color: var(--slate2); line-height: 1.55; margin-bottom: 10px; }
+
+/* ── KEY RULES SECTION ── */
+.rules-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+  animation: rowIn 0.3s 0.33s ease both;
+}
+
+.rules-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+
+.rule-cell {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border2);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.rule-cell:last-child { border-right: none; }
+
+.rule-num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--navy2);
+  color: #fff;
+  font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+
+.rule-body { flex: 1; }
+.rule-title { font-size: 10px; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+.rule-desc  { font-size: 9.5px; color: var(--slate2); line-height: 1.5; }
+
+/* ── FOOTER ── */
+.footer-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 13px 24px;
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 16px;
+  box-shadow: var(--shadow-sm); flex-wrap: wrap;
+  animation: rowIn 0.3s 0.36s ease both;
+}
+
+.footer-badge-section { display: flex; align-items: center; gap: 10px; }
+.footer-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.badge-code {
+  background: var(--navy); color: #9DCEFF;
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  padding: 5px 12px; border-radius: 4px;
+}
+
+.footer-note { font-size: 10px; color: var(--slate2); font-style: italic; }
+.footer-note code { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-style: normal; color: var(--blue); }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- DOCUMENT HEADER -->
+  <div class="doc-header">
+    <div class="doc-header-left">
+      <div class="doc-meta">
+        <span class="chip chip-blue">Process Flow</span>
+        <span class="chip chip-grey">EDK2 / UEFI</span>
+        <span class="chip chip-teal">CI/CD Automation</span>
+        <span class="chip chip-green">Rev 1.0 · Active</span>
+      </div>
+      <div class="doc-title">UEFI Driver Unit Test — Setup &amp; CI/CD Pipeline</div>
+      <div class="doc-subtitle">
+        End-to-end process flow: WSL2 developer environment → EDK2 UnitTestFrameworkPkg integration → GitHub Actions continuous integration
+      </div>
+    </div>
+    <div class="doc-header-right">
+      <table class="doc-info-table">
+        <tr><td>Document ID</td><td>UEFI-UNITTEST-001</td></tr>
+        <tr><td>Framework</td><td>tianocore/edk2</td></tr>
+        <tr><td>Toolchain</td><td>GCC5 · NOOPT · X64/AARCH64</td></tr>
+        <tr><td>Dev Platform</td><td>WSL2 · Ubuntu 22.04</td></tr>
+        <tr><td>CI Runner</td><td>ubuntu-22.04 (GitHub-hosted)</td></tr>
+        <tr><td>Test Backend</td><td>UnitTestFrameworkPkg · cmocka</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend-bar">
+    <span class="legend-title">Legend</span>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--purple-bg);border:1px solid var(--purple-bdr);border-left:3px solid var(--purple);"></div>
+      WSL2 Environment
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--blue-bg);border:1px solid var(--blue-bdr);border-left:3px solid var(--blue);"></div>
+      EDK2 Framework
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--teal-bg);border:1px solid var(--teal-bdr);border-left:3px solid var(--teal);"></div>
+      GitHub Actions CI
+    </div>
+    <div class="legend-sep"></div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--amber-bg);border:2px solid var(--amber-bdr);transform:rotate(45deg);border-radius:2px;width:14px;height:14px;"></div>
+      Quality Gate
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--green-bg);border:1px solid var(--green-bdr);"></div>
+      Success Path
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch" style="background:var(--red-bg);border:1px solid var(--red-bdr);"></div>
+      Rework / Failure Path
+    </div>
+  </div>
+
+  <!-- SWIMLANE TABLE -->
+  <div class="swimlane-table">
+
+    <!-- Column headers -->
+    <div class="swimlane-header">
+      <div class="swimlane-header-phase">Phase</div>
+      <div class="swimlane-header-lane lh-wsl">
+        <div class="lane-icon" style="background:var(--purple-bg);color:var(--purple);">🐧</div>
+        WSL2 Environment
+      </div>
+      <div class="swimlane-header-lane lh-edk2">
+        <div class="lane-icon" style="background:var(--blue-bg);color:var(--blue);">⚙️</div>
+        EDK2 Framework
+      </div>
+      <div class="swimlane-header-lane lh-ci">
+        <div class="lane-icon" style="background:var(--teal-bg);color:var(--teal);">🔄</div>
+        GitHub Actions CI
+      </div>
+    </div>
+
+    <!-- PHASE 1 -->
+    <div class="swimlane-row">
+      <div class="phase-label">
+        <div class="phase-num">1</div>
+        <div class="phase-name">Environment Setup</div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode wsl tip">
+          <span class="start-badge chip-purple">Start</span>
+          <div class="pnode-header">
+            <span class="pnode-icon">🖥️</span>
+            <div class="pnode-title">Install WSL2 + Ubuntu 22.04</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Enable WSL2 via Windows features. Verify version is 2 for optimal build performance and POSIX compatibility.</div>
+            <div class="pnode-code">
+              <span class="c-green">wsl</span> <span class="c-white">--install -d Ubuntu-22.04</span><br>
+              <span class="c-green">wsl</span> <span class="c-white">--set-version Ubuntu-22.04 2</span>
+            </div>
+          </div>
+          <div class="tip-text">⚠️ WSL2 required — WSL1 breaks EDK2 symlinks and build scripts</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head"></div></div>
+        <div class="pnode wsl tip">
+          <div class="pnode-header">
+            <span class="pnode-icon">📦</span>
+            <div class="pnode-title">Install Build Dependencies</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Install GCC, NASM, Python3, ACPI compiler (iasl), UUID dev headers, and cmocka mock library.</div>
+            <div class="pnode-code">
+              <span class="c-green">sudo apt install</span> <span class="c-yellow">-y</span> <span class="c-white">\</span><br>
+              <span class="c-white">  build-essential uuid-dev \</span><br>
+              <span class="c-white">  iasl nasm libcmocka-dev</span>
+            </div>
+          </div>
+          <div class="tip-text">GCC 11 (Ubuntu 22.04 default) works with EDK2 GCC5 toolchain tag</div>
+        </div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode edk2 tip">
+          <span class="start-badge chip-blue">Start</span>
+          <div class="pnode-header">
+            <span class="pnode-icon">📥</span>
+            <div class="pnode-title">Clone EDK2 + Init Submodules</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Clone tianocore/edk2 with all submodules. Build BaseTools and source the environment — required in same shell as build.</div>
+            <div class="pnode-code">
+              <span class="c-green">git clone</span> <span class="c-white">--recursive edk2</span><br>
+              <span class="c-green">make</span> <span class="c-white">-C BaseTools</span><br>
+              <span class="c-green">source</span> <span class="c-white">edksetup.sh</span>
+            </div>
+          </div>
+          <div class="tip-text">Add source edksetup.sh to ~/.bashrc for persistence across sessions</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head"></div></div>
+        <div class="pnode edk2">
+          <div class="pnode-header">
+            <span class="pnode-icon">🔗</span>
+            <div class="pnode-title">Symlink Package into EDK2 Tree</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Keep source on Windows side for IDE access. Symlink into WSL EDK2 tree. Never build on /mnt/c — use ~/edk2/.</div>
+            <div class="pnode-code">
+              <span class="c-green">ln -s</span> <span class="c-white">/mnt/c/Work/MyPkg \</span><br>
+              <span class="c-white">       ~/edk2/MyPkg</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode ci tip">
+          <span class="start-badge chip-teal">Start</span>
+          <div class="pnode-header">
+            <span class="pnode-icon">📁</span>
+            <div class="pnode-title">Create Workflow &amp; Configure Triggers</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Initialize .github/workflows/. Set triggers on push/PR. Pin runner to ubuntu-22.04 to mirror WSL environment exactly.</div>
+            <div class="pnode-code">
+              <span class="c-green">on:</span><br>
+              <span class="c-white">  push:</span><br>
+              <span class="c-white">    branches: [main]</span><br>
+              <span class="c-white">  pull_request:</span>
+            </div>
+          </div>
+          <div class="tip-text">ubuntu-22.04 runner matches local WSL2 environment — no surprises</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head"></div></div>
+        <div class="pnode ci tip">
+          <div class="pnode-header">
+            <span class="pnode-icon">💾</span>
+            <div class="pnode-title">Configure Build Caching</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Cache compiled BaseTools and pip packages. Keyed on file hashes — invalidates only when sources change. Reduces CI from ~8 min → ~90 sec.</div>
+            <div class="pnode-code">
+              <span class="c-green">uses:</span> <span class="c-white">actions/cache@v4</span><br>
+              <span class="c-yellow">key:</span> <span class="c-white">basetools-</span><span class="c-yellow">${{'{{'}} hashFiles(</span><br>
+              <span class="c-yellow">  'BaseTools/**') {{'}}'}}</span>
+            </div>
+          </div>
+          <div class="tip-text">Critical for fast CI feedback loops — always configure caching first</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHASE 2 -->
+    <div class="swimlane-row">
+      <div class="phase-label">
+        <div class="phase-num">2</div>
+        <div class="phase-name">Test Authoring</div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode wsl">
+          <div class="pnode-header">
+            <span class="pnode-icon">🐛</span>
+            <div class="pnode-title">Configure VS Code WSL Integration</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Install VS Code WSL extension. Set include paths for EDK2 headers. Edit in Windows, build &amp; debug natively in WSL.</div>
+            <div class="pnode-code">
+              <span class="c-yellow">// c_cpp_properties.json</span><br>
+              <span class="c-white">"includePath": [</span><br>
+              <span class="c-white">  "~/edk2/MdePkg/Include",</span><br>
+              <span class="c-white">  ".../Include/X64" ]</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode edk2">
+          <div class="pnode-header">
+            <span class="pnode-icon">📄</span>
+            <div class="pnode-title">Author Test INF + DSC Entries</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Set MODULE_TYPE = HOST_APPLICATION. Declare UnitTestFrameworkPkg libs. Wire mock libs in DSC for protocol isolation.</div>
+            <div class="pnode-code">
+              <span class="c-yellow">MODULE_TYPE</span> <span class="c-white">= HOST_APPLICATION</span><br>
+              <span class="c-yellow">[LibraryClasses]</span><br>
+              <span class="c-white">  UnitTestLib</span><br>
+              <span class="c-white">  UnitTestResultReportLib</span>
+            </div>
+          </div>
+        </div>
+        <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head"></div></div>
+        <div class="pnode edk2">
+          <div class="pnode-header">
+            <span class="pnode-icon">✏️</span>
+            <div class="pnode-title">Write Test Cases + Entry Point</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Implement UNIT_TEST_STATUS functions. Register suites and cases. Enable JUnit XML output via UnitTestResultReportLibJunit.</div>
+            <div class="pnode-code">
+              <span class="c-pink">UNIT_TEST_STATUS</span> <span class="c-white">EFIAPI</span><br>
+              <span class="c-white">MyTest(UNIT_TEST_CONTEXT C){</span><br>
+              <span class="c-white">  UT_ASSERT_EQUAL(a, b);</span><br>
+              <span class="c-white">}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode ci">
+          <div class="pnode-header">
+            <span class="pnode-icon">🔀</span>
+            <div class="pnode-title">Checkout EDK2 at Stable Tag</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Checkout both repositories. Pin EDK2 ref to a stable tag. Symlink package into EDK2 tree inside runner workspace.</div>
+            <div class="pnode-code">
+              <span class="c-green">uses:</span> <span class="c-white">actions/checkout@v4</span><br>
+              <span class="c-white">repository: tianocore/edk2</span><br>
+              <span class="c-white">ref: edk2-stable202311</span><br>
+              <span class="c-white">submodules: recursive</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHASE 3 -->
+    <div class="swimlane-row">
+      <div class="phase-label">
+        <div class="phase-num">3</div>
+        <div class="phase-name">Build &amp; Execute</div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode wsl tip">
+          <div class="pnode-header">
+            <span class="pnode-icon">▶️</span>
+            <div class="pnode-title">Local Build &amp; GDB Debugging</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Build with NOOPT target for full debug symbols. Execute native binary. Attach GDB for breakpoint debugging of firmware logic.</div>
+            <div class="pnode-code">
+              <span class="c-green">build</span> <span class="c-white">-a X64 -t GCC5 \</span><br>
+              <span class="c-white">  --target NOOPT -m ...</span><br>
+              <span class="c-green">gdb</span> <span class="c-white">./Build/.../UnitTest</span>
+            </div>
+          </div>
+          <div class="tip-text">Key advantage of HOST_APPLICATION: full native debugger — no JTAG needed</div>
+        </div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode edk2">
+          <div class="pnode-header">
+            <span class="pnode-icon">🧪</span>
+            <div class="pnode-title">Validate Locally Before Push</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Run all test suites locally. Confirm pass/fail output to stdout and JUnit XML generation before committing to remote.</div>
+            <div class="pnode-code">
+              <span class="c-white">./Build/MyPkg/NOOPT_GCC5/</span><br>
+              <span class="c-white">  X64/MyDriverUnitTest</span><br>
+              <span class="c-yellow"># → stdout + *.xml output</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="swimlane-lane">
+        <div class="pnode ci">
+          <div class="pnode-header">
+            <span class="pnode-icon">🏗️</span>
+            <div class="pnode-title">Build BaseTools + Execute Tests</div>
+          </div>
+          <div class="pnode-body">
+            <div class="pnode-desc">Compile BaseTools (or restore from cache). source edksetup.sh and build must be in the same CI step. Run binary, capture output.</div>
+            <div class="pnode-code">
+              <span class="c-green">source</span> <span class="c-white">edksetup.sh</span><br>
+              <span class="c-green">build</span> <span class="c-white">-a X64 -t GCC5 \</span><br>
+              <span class="c-white">  --target NOOPT ...</span><br>
+              <span class="c-green">./Build/.../MyDriverUnitTest</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end swimlane-table -->
+
+  <!-- QUALITY GATE -->
+  <div class="gateway-section">
+    <div class="gateway-section-header">
+      <span style="font-size:14px;">◆</span>
+      <span class="gateway-section-title">Quality Gate G1 — Test Results Evaluation</span>
+      <div class="section-line"></div>
+      <span class="chip chip-amber">Decision Point</span>
+    </div>
+    <div class="gateway-body">
+      <div class="diamond-shape">
+        <div class="diamond-inner">
+          <div class="d-title">All Tests<br>Pass?</div>
+          <div class="d-sub">CI &amp; local<br>confirmed</div>
+        </div>
+      </div>
+      <div class="gateway-paths">
+        <div class="path-card path-success">
+          <div class="path-card-header">
+            <span>✅</span> Yes — Merge Approved
+          </div>
+          <div class="path-card-body">
+            <p>PR quality gate passes. JUnit XML results published as GitHub Check annotations inline on the PR. Status badge updates to green. Branch eligible for merge.</p>
+            <div class="pnode-code">
+              <span class="c-green">uses:</span> <span class="c-white">EnricoMi/publish-unit-</span><br>
+              <span class="c-white">  test-result-action@v2</span><br>
+              <span class="c-yellow">files:</span> <span class="c-white">Build/**/*.xml</span>
+            </div>
+          </div>
+        </div>
+        <div class="path-card path-fail">
+          <div class="path-card-header">
+            <span>❌</span> No — Rework Required
+          </div>
+          <div class="path-card-body">
+            <p>PR is blocked. CI logs and test XML uploaded as artifacts via <code style="font-family:monospace;font-size:9px">if: always()</code> for triage. Developer diagnoses in WSL with GDB, fixes, and re-pushes to re-trigger the gate.</p>
+            <div class="pnode-code">
+              <span class="c-yellow">- name:</span> <span class="c-white">Upload failure logs</span><br>
+              <span class="c-white">  if: always()</span><br>
+              <span class="c-green">  uses:</span> <span class="c-white">upload-artifact@v4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENHANCEMENTS -->
+  <div class="enhancements-section">
+    <div class="section-header">
+      <span class="section-header-title">Optional Enhancements</span>
+      <div class="section-line"></div>
+      <span class="chip chip-grey">Post-Baseline · Apply as needed</span>
+    </div>
+    <div class="enhancements-grid">
+
+      <div class="enh-cell">
+        <span class="chip chip-blue">🔀 Matrix Strategy</span>
+        <div class="enh-title">Multi-Architecture Parallel Testing</div>
+        <div class="enh-desc">Use GitHub Actions matrix to simultaneously validate X64 and AARCH64 targets. Install gcc-aarch64-linux-gnu cross-compiler for AARCH64 builds. Failures are isolated per-arch.</div>
+        <div class="pnode-code">
+          <span class="c-green">strategy:</span><br>
+          &nbsp;<span class="c-white">matrix:</span><br>
+          &nbsp;&nbsp;<span class="c-yellow">arch:</span> <span class="c-white">[X64, AARCH64]</span>
+        </div>
+      </div>
+
+      <div class="enh-cell">
+        <span class="chip chip-purple">🎭 Mock Libraries</span>
+        <div class="enh-title">Protocol Isolation via cmocka</div>
+        <div class="enh-desc">Wire cmocka stubs or custom mock INFs for EFI protocol dependencies (gBS, gRT, gDS). Enables unit testing of driver logic in complete isolation without firmware runtime.</div>
+        <div class="pnode-code">
+          <span class="c-yellow">UnitTestLib</span><span class="c-white">|</span><br>
+          &nbsp;<span class="c-white">UnitTestFrameworkPkg/</span><br>
+          &nbsp;<span class="c-white">..UnitTestLibCmocka.inf</span>
+        </div>
+      </div>
+
+      <div class="enh-cell">
+        <span class="chip chip-amber">🖥️ On-Target Execution</span>
+        <div class="enh-title">UEFI Shell Hardware Validation</div>
+        <div class="enh-desc">Switch MODULE_TYPE to UEFI_APPLICATION for hardware-in-loop validation. Build with UEFI toolchain, deploy .efi to USB or virtual disk, execute from UEFI Shell on target hardware.</div>
+        <div class="pnode-code">
+          <span class="c-yellow">MODULE_TYPE</span> <span class="c-white">=</span><br>
+          &nbsp;<span class="c-white">UEFI_APPLICATION</span><br>
+          <span class="c-yellow"># fs0:\> MyTest.efi</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CRITICAL RULES -->
+  <div class="rules-section">
+    <div class="section-header">
+      <span class="section-header-title">Critical Implementation Notes</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="rules-grid">
+      <div class="rule-cell">
+        <div class="rule-num">1</div>
+        <div class="rule-body">
+          <div class="rule-title">Same-Step Requirement</div>
+          <div class="rule-desc"><code style="font-family:monospace;font-size:9px;color:var(--blue)">source edksetup.sh</code> and <code style="font-family:monospace;font-size:9px;color:var(--blue)">build</code> must execute in a single CI step — env vars do not persist between steps.</div>
+        </div>
+      </div>
+      <div class="rule-cell">
+        <div class="rule-num">2</div>
+        <div class="rule-body">
+          <div class="rule-title">Build on WSL Filesystem</div>
+          <div class="rule-desc">Always build inside <code style="font-family:monospace;font-size:9px;color:var(--blue)">~/edk2/</code> (WSL native FS), never on <code style="font-family:monospace;font-size:9px;color:var(--blue)">/mnt/c/</code>. Cross-filesystem I/O causes significant slowdowns and can break build scripts.</div>
+        </div>
+      </div>
+      <div class="rule-cell">
+        <div class="rule-num">3</div>
+        <div class="rule-body">
+          <div class="rule-title">Pin EDK2 Stable Tag</div>
+          <div class="rule-desc">Always use <code style="font-family:monospace;font-size:9px;color:var(--blue)">edk2-stable202311</code> or later in CI, never <code style="font-family:monospace;font-size:9px;color:var(--blue)">main</code>. Upstream HEAD can break your build without warning.</div>
+        </div>
+      </div>
+      <div class="rule-cell">
+        <div class="rule-num">4</div>
+        <div class="rule-body">
+          <div class="rule-title">Use NOOPT Target</div>
+          <div class="rule-desc">Always build unit tests with <code style="font-family:monospace;font-size:9px;color:var(--blue)">--target NOOPT</code> (not DEBUG or RELEASE) to preserve full symbol information for GDB and crash analysis.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-bar">
+    <div class="footer-badge-section">
+      <span class="footer-label">README Badge</span>
+      <div class="badge-code">![Unit Tests](https://github.com/&lt;Org&gt;/&lt;Repo&gt;/actions/workflows/unit-test.yml/badge.svg)</div>
+    </div>
+    <div class="footer-note">
+      Reference: <code>MdeModulePkg/Test/</code> and <code>UnitTestFrameworkPkg/ReadMe.md</code> for working examples &nbsp;·&nbsp;
+      Set <code>git config --global core.autocrlf false</code> before cloning on Windows
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
